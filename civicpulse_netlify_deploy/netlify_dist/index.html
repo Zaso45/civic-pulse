@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CivicPulse | Civic & Gated Community AI Engine</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & Playfair Display for editorial beige aesthetic -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,800;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Leaflet CSS & JS for Interactive GeoMap -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            serif: ['"Playfair Display"', 'serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            beige: {
+              50: '#FAF8F5',   // Canvas tint
+              100: '#F5EFEB',  // Card background
+              200: '#EAE0D5',  // Borders and dividers
+              300: '#DFD2C4',  // Active surfaces
+              400: '#C5B5A3',  // Subtext
+              500: '#9E8B76',  // Warm taupe
+              600: '#756350',  // Muted heading
+              700: '#544638',  // Deep earth
+              800: '#3D3126',  // Primary text
+              900: '#231B15',  // Espresso black
+            },
+            terracotta: {
+              500: '#D95338',
+              600: '#B83F27',
+              700: '#94301B',
+            },
+            forest: {
+              600: '#2F6E50',
+              700: '#23533C',
+            },
+            amberwood: '#C97A2B',
+            cobalt: '#325D88',
+          },
+          boxShadow: {
+            'soft': '0 8px 30px rgba(61, 49, 38, 0.05)',
+            'card': '0 12px 35px -6px rgba(84, 70, 56, 0.08), 0 2px 6px -1px rgba(84, 70, 56, 0.04)',
+            'elevated': '0 25px 50px -12px rgba(61, 49, 38, 0.16)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Custom Scrollbar for Beige Theme */
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #FAF8F5; }
+    ::-webkit-scrollbar-thumb { background: #DFD2C4; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9E8B76; }
+
+    /* Subtle Paper Grain Overlay */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 999;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    }
+
+    .editorial-border {
+      border: 1px solid rgba(197, 181, 163, 0.45);
+    }
+
+    /* Bounding Box Styling */
+    .bbox-scanner {
+      position: absolute;
+      border: 2px dashed #D95338;
+      background: rgba(217, 83, 56, 0.15);
+      border-radius: 6px;
+      transition: all 0.3s ease;
+      animation: pulseBox 2.5s infinite ease-in-out;
+    }
+    @keyframes pulseBox {
+      0%, 100% { border-color: #D95338; box-shadow: 0 0 0 0 rgba(217, 83, 56, 0.4); }
+      50% { border-color: #B83F27; box-shadow: 0 0 0 6px rgba(217, 83, 56, 0.0); }
+    }
+
+    /* Custom Leaflet Map Pin */
+    .custom-marker {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      border: 2px solid #FAF8F5;
+    }
+  </style>
+</head>
+
+<body class="bg-beige-50 text-beige-800 min-h-screen font-sans selection:bg-beige-200 selection:text-beige-900 antialiased">
+
+  <!-- Ambient Organic Warm Orbs -->
+  <div class="fixed -top-40 -left-40 w-96 h-96 bg-beige-200/50 rounded-full blur-3xl pointer-events-none -z-10"></div>
+  <div class="fixed top-1/3 -right-32 w-80 h-80 bg-amberwood/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+  <div class="fixed -bottom-40 left-1/3 w-[500px] h-[500px] bg-beige-300/40 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+  <!-- Editorial Top Notification Header -->
+  <aside aria-label="System status" class="bg-beige-200/60 border-b border-beige-300/70 text-beige-700 px-4 py-1.5 text-xs font-semibold">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="inline-block w-2 h-2 rounded-full bg-forest-600 animate-pulse"></span>
+        <span>AI Municipal Dispatch Engine v3.4 Active</span>
+        <span class="text-beige-400">|</span>
+        <span class="hidden sm:inline">Telangana Municipalities &amp; RWA Residential Nodes Connected</span>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-beige-600">
+        <span class="font-mono">Zone: IN-TG</span>
+        <span class="underline cursor-pointer hover:text-beige-900" onclick="switchView('authority')">RWA / Municipal Sign In &rarr;</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Navigation Bar -->
+  <header class="sticky top-0 z-40 bg-beige-50/90 backdrop-blur-md border-b border-beige-200/90 transition">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('feed')">
+        <div class="w-12 h-12 rounded-2xl bg-beige-800 text-beige-50 flex items-center justify-center shadow-card transition-transform hover:scale-105">
+          <i data-lucide="crosshair" class="w-6 h-6 text-amberwood"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-serif font-bold text-2xl tracking-tight text-beige-900">CivicPulse</span>
+            <span class="text-[10px] uppercase font-mono tracking-widest px-2 py-0.5 rounded-md bg-beige-200 text-beige-800 font-bold">Linen AI</span>
+          </div>
+          <p class="text-[11px] font-semibold text-beige-500 tracking-wide">Urban Grievance &amp; Gated Society Redressal</p>
+        </div>
+      </div>
+
+      <!-- Center Desktop Navigation Navigation -->
+      <nav class="hidden lg:flex items-center gap-1.5 bg-beige-100/90 p-1.5 rounded-2xl editorial-border">
+        <button onclick="switchView('feed')" id="nav-feed" class="nav-tab px-4 py-2 rounded-xl text-xs font-bold text-beige-900 bg-white shadow-soft transition-all flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4 text-terracotta-500"></i> Issues Feed
+        </button>
+        <button onclick="switchView('gated')" id="nav-gated" class="nav-tab px-4 py-2 rounded-xl text-xs font-bold text-beige-600 hover:text-beige-900 hover:bg-beige-200/50 transition-all flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-cobalt"></i> Gated Society Hub
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-terracotta-500 text-white font-mono">NEW</span>
+        </button>
+        <button onclick="switchView('map')" id="nav-map" class="nav-tab px-4 py-2 rounded-xl text-xs font-bold text-beige-600 hover:text-beige-900 hover:bg-beige-200/50 transition-all flex items-center gap-2">
+          <i data-lucide="map-pin" class="w-4 h-4 text-forest-600"></i> Radar Map
+        </button>
+        <button onclick="switchView('authority')" id="nav-authority" class="nav-tab px-4 py-2 rounded-xl text-xs font-bold text-beige-600 hover:text-beige-900 hover:bg-beige-200/50 transition-all flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4 text-amberwood"></i> Triage Dispatch
+        </button>
+      </nav>
+
+      <!-- Citizen Karma & Launch Action -->
+      <div class="flex items-center gap-3">
+        <!-- Karma Counter -->
+        <div class="hidden sm:flex items-center gap-2.5 px-3.5 py-2 rounded-2xl bg-beige-100 editorial-border">
+          <div class="w-7 h-7 rounded-xl bg-amberwood/20 text-amberwood flex items-center justify-center font-bold text-xs">
+            <i data-lucide="award" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase font-mono font-bold text-beige-500 leading-none">Citizen Karma</div>
+            <div class="text-xs font-black text-beige-900" id="user-karma-badge">920 PTS</div>
+          </div>
+        </div>
+
+        <!-- Primary Report Button -->
+        <button onclick="openModal()" class="px-4 py-2.5 rounded-2xl bg-terracotta-500 hover:bg-terracotta-600 text-white text-xs font-bold tracking-wide shadow-card flex items-center gap-2 transition-transform active:scale-95">
+          <i data-lucide="camera" class="w-4 h-4"></i>
+          <span>Report Incident</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- VIEW 1: ISSUE FEED & COMMUNITY BOARD -->
+    <section id="view-feed" class="view-panel space-y-8">
+      
+      <!-- Editorial Hero Banner -->
+      <div class="p-8 sm:p-10 rounded-3xl bg-beige-100 editorial-border shadow-card relative overflow-hidden">
+        <div class="max-w-2xl relative z-10 space-y-3">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-mono font-bold tracking-wider uppercase bg-beige-200 text-beige-700">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amberwood"></i> Neural Vision Citizen Feedback
+          </span>
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-serif font-bold text-beige-900 leading-tight">
+            Fix your streets. Safeguard your society.
+          </h1>
+          <p class="text-sm sm:text-base text-beige-600 leading-relaxed">
+            Upload public road hazards or gated community grievances. CivicPulse uses computer vision to categorize severity, calculate impact, and dispatch directly to city wards or private RWA committees.
+          </p>
+          <div class="pt-2 flex flex-wrap items-center gap-3">
+            <button onclick="openModal('city')" class="px-5 py-2.5 rounded-xl bg-beige-900 hover:bg-beige-800 text-beige-50 text-xs font-bold transition flex items-center gap-2 shadow-soft">
+              <i data-lucide="cone" class="w-4 h-4 text-amberwood"></i> Public Pothole / Road Hazard
+            </button>
+            <button onclick="openModal('gated')" class="px-5 py-2.5 rounded-xl bg-white hover:bg-beige-50 text-beige-800 text-xs font-bold editorial-border transition flex items-center gap-2">
+              <i data-lucide="home" class="w-4 h-4 text-cobalt"></i> Gated Complex Complaint
+            </button>
+          </div>
+        </div>
+
+        <div class="hidden lg:block absolute -bottom-10 right-8 w-80 p-6 rounded-2xl bg-white/90 backdrop-blur editorial-border shadow-card">
+          <div class="flex items-center justify-between text-xs pb-3 border-b border-beige-200">
+            <span class="font-mono text-beige-500 font-bold">REAL-TIME TELEMETRY</span>
+            <span class="w-2 h-2 rounded-full bg-forest-600 animate-ping"></span>
+          </div>
+          <div class="grid grid-cols-2 gap-4 mt-3">
+            <div>
+              <span class="text-2xl font-serif font-bold text-beige-900" id="stats-resolved">384</span>
+              <p class="text-[11px] text-beige-500 font-semibold">Defects Repaired</p>
+            </div>
+            <div>
+              <span class="text-2xl font-serif font-bold text-terracotta-500" id="stats-active">19</span>
+              <p class="text-[11px] text-beige-500 font-semibold">Critical Dispatches</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Metrics Counters -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="p-4 rounded-2xl bg-white editorial-border shadow-soft">
+          <span class="text-[11px] font-mono font-bold uppercase text-beige-400">Total Recorded</span>
+          <div class="text-2xl font-bold text-beige-900 mt-1">1,842</div>
+          <span class="text-[11px] font-bold text-forest-600 flex items-center gap-1 mt-0.5">
+            <i data-lucide="trending-up" class="w-3.5 h-3.5"></i> +14.2% verified
+          </span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white editorial-border shadow-soft">
+          <span class="text-[11px] font-mono font-bold uppercase text-beige-400">Average Triage Time</span>
+          <div class="text-2xl font-bold text-beige-900 mt-1">2.8 <span class="text-sm font-semibold text-beige-500">hours</span></div>
+          <span class="text-[11px] font-bold text-cobalt flex items-center gap-1 mt-0.5">
+            <i data-lucide="zap" class="w-3.5 h-3.5"></i> 3x faster than phone calls
+          </span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white editorial-border shadow-soft">
+          <span class="text-[11px] font-mono font-bold uppercase text-beige-400">Gated Complex RWAs</span>
+          <div class="text-2xl font-bold text-beige-900 mt-1">48</div>
+          <span class="text-[11px] font-bold text-amberwood flex items-center gap-1 mt-0.5">
+            <i data-lucide="building" class="w-3.5 h-3.5"></i> Active communities
+          </span>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-white editorial-border shadow-soft">
+          <span class="text-[11px] font-mono font-bold uppercase text-beige-400">Community Fines Assessed</span>
+          <div class="text-2xl font-bold text-beige-900 mt-1">&#8377;42,500</div>
+          <span class="text-[11px] font-bold text-beige-500 flex items-center gap-1 mt-0.5">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i> Parking &amp; Noise levies
+          </span>
+        </div>
+      </div>
+
+      <!-- Feed Filter Strip -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-beige-200 pb-4">
+        <div class="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0">
+          <button onclick="filterTickets('all')" class="feed-btn active px-4 py-2 rounded-xl text-xs font-bold bg-beige-900 text-beige-50 transition">All Reports</button>
+          <button onclick="filterTickets('pothole')" class="feed-btn px-4 py-2 rounded-xl text-xs font-bold bg-beige-100 text-beige-700 hover:bg-beige-200 transition">Roads &amp; Potholes</button>
+          <button onclick="filterTickets('gated')" class="feed-btn px-4 py-2 rounded-xl text-xs font-bold bg-beige-100 text-beige-700 hover:bg-beige-200 transition">Gated Society RWAs</button>
+          <button onclick="filterTickets('water')" class="feed-btn px-4 py-2 rounded-xl text-xs font-bold bg-beige-100 text-beige-700 hover:bg-beige-200 transition">Water Supply &amp; Drainage</button>
+          <button onclick="filterTickets('electric')" class="feed-btn px-4 py-2 rounded-xl text-xs font-bold bg-beige-100 text-beige-700 hover:bg-beige-200 transition">Power &amp; Lighting</button>
+        </div>
+
+        <div class="flex items-center gap-3 text-xs font-semibold text-beige-600">
+          <span>Sort By:</span>
+          <select id="sort-select" onchange="sortTickets(this.value)" class="bg-beige-100 border border-beige-300 rounded-xl px-3 py-1.5 text-xs text-beige-800 font-bold focus:outline-none">
+            <option value="severity">Severity Score (High &rarr; Low)</option>
+            <option value="recent">Most Recent</option>
+            <option value="upvotes">Community Upvotes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Issues Cards Grid -->
+      <div id="tickets-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Dynamically rendered via JS -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: GATED COMMUNITY SPECIFIC HUB -->
+    <section id="view-gated" class="view-panel hidden space-y-8">
+      <!-- Section Header -->
+      <div class="p-8 rounded-3xl bg-beige-100 editorial-border shadow-soft">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div class="space-y-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-cobalt/10 text-cobalt border border-cobalt/20">
+              <i data-lucide="shield" class="w-3.5 h-3.5"></i> Resident Welfare Association (RWA) Portal
+            </div>
+            <h2 class="text-3xl font-serif font-bold text-beige-900">Gated Complex Grievance Central</h2>
+            <p class="text-xs sm:text-sm text-beige-600 max-w-2xl">
+              Internal private issues that municipal authorities won't address: Elevator breakdowns, visitor parking violations, midnight noise decibels, security guard absenteeism, and clubhouse hygiene.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button onclick="openModal('gated')" class="px-5 py-3 rounded-2xl bg-beige-900 hover:bg-beige-800 text-beige-50 text-xs font-bold transition flex items-center gap-2 shadow-card">
+              <i data-lucide="plus-circle" class="w-4 h-4 text-amberwood"></i> File Society Dispute
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Common Society Friction Categories -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div onclick="openModal('gated', 'Parking Violation')" class="p-5 rounded-2xl bg-white editorial-border shadow-soft hover:shadow-card cursor-pointer transition group">
+          <div class="w-10 h-10 rounded-xl bg-beige-100 flex items-center justify-center text-amberwood group-hover:scale-110 transition">
+            <i data-lucide="car" class="w-5 h-5"></i>
+          </div>
+          <h3 class="font-bold text-sm text-beige-900 mt-3">Parking Violations</h3>
+          <p class="text-xs text-beige-500 mt-1">Visitors occupying assigned slots or EV charging bays.</p>
+        </div>
+
+        <div onclick="openModal('gated', 'Clubhouse & Noise')" class="p-5 rounded-2xl bg-white editorial-border shadow-soft hover:shadow-card cursor-pointer transition group">
+          <div class="w-10 h-10 rounded-xl bg-beige-100 flex items-center justify-center text-terracotta-500 group-hover:scale-110 transition">
+            <i data-lucide="volume-2" class="w-5 h-5"></i>
+          </div>
+          <h3 class="font-bold text-sm text-beige-900 mt-3">Noise &amp; Quiet Hours</h3>
+          <p class="text-xs text-beige-500 mt-1">Loud late-night bashes, interior renovation outside permitted slots.</p>
+        </div>
+
+        <div onclick="openModal('gated', 'Lift & Power Backup')" class="p-5 rounded-2xl bg-white editorial-border shadow-soft hover:shadow-card cursor-pointer transition group">
+          <div class="w-10 h-10 rounded-xl bg-beige-100 flex items-center justify-center text-forest-600 group-hover:scale-110 transition">
+            <i data-lucide="arrow-up-down" class="w-5 h-5"></i>
+          </div>
+          <h3 class="font-bold text-sm text-beige-900 mt-3">Lifts &amp; Diesel Generator</h3>
+          <p class="text-xs text-beige-500 mt-1">Elevator jerks, door sensor failure, corridor water leakage.</p>
+        </div>
+
+        <div onclick="openModal('gated', 'Security & Gate Guard')" class="p-5 rounded-2xl bg-white editorial-border shadow-soft hover:shadow-card cursor-pointer transition group">
+          <div class="w-10 h-10 rounded-xl bg-beige-100 flex items-center justify-center text-cobalt group-hover:scale-110 transition">
+            <i data-lucide="user-x" class="w-5 h-5"></i>
+          </div>
+          <h3 class="font-bold text-sm text-beige-900 mt-3">Guard &amp; Gate Lapses</h3>
+          <p class="text-xs text-beige-500 mt-1">Unlogged delivery personnel, gate barrier breakdown.</p>
+        </div>
+      </div>
+
+      <!-- Live Society Dispute Feed -->
+      <div class="bg-white rounded-3xl p-6 editorial-border shadow-soft space-y-4">
+        <div class="flex items-center justify-between border-b border-beige-200 pb-4">
+          <div>
+            <h3 class="font-serif font-bold text-lg text-beige-900">Current Gated Complex Log</h3>
+            <p class="text-xs text-beige-500">Live ticket triage for Green Valley Palms &amp; Silver Arch Heights</p>
+          </div>
+          <span class="text-xs font-mono font-bold text-beige-600 bg-beige-100 px-3 py-1 rounded-full">RWA Auto-Notify: ON</span>
+        </div>
+
+        <div id="gated-feed-list" class="divide-y divide-beige-100 space-y-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: RADAR GEOMAP -->
+    <section id="view-map" class="view-panel hidden space-y-6">
+      <div class="p-6 rounded-3xl bg-beige-100 editorial-border shadow-soft">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div>
+            <span class="text-xs font-mono font-bold text-beige-500 uppercase">Geospatial Intelligence</span>
+            <h2 class="text-2xl font-serif font-bold text-beige-900">City &amp; Community Incident Radar</h2>
+          </div>
+          <div class="flex items-center gap-2 text-xs font-bold">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-terracotta-500"></span> Critical</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-amberwood"></span> High</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-cobalt"></span> Gated Society</span>
+          </div>
+        </div>
+
+        <!-- Leaflet Map Container -->
+        <div id="leaflet-map" class="w-full h-[540px] rounded-2xl editorial-border overflow-hidden shadow-inner relative z-0"></div>
+
+        <!-- Map Bottom Ticker -->
+        <div class="mt-4 p-4 rounded-xl bg-white editorial-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2 text-beige-700">
+            <i data-lucide="info" class="w-4 h-4 text-amberwood"></i>
+            <span>Interactive map centered on Telangana Urban Nodes. Click any marker to view AI diagnostic &amp; dispatch team.</span>
+          </div>
+          <button onclick="recenterMap()" class="px-3 py-1.5 rounded-lg bg-beige-100 hover:bg-beige-200 text-beige-800 font-bold font-mono text-[11px] transition flex items-center gap-2">
+            <i data-lucide="navigation" class="w-3 h-3"></i> Recenter on My Location
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: AUTHORITY & RWA TRIAGE DISPATCH DASHBOARD -->
+    <section id="view-authority" class="view-panel hidden space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-mono font-bold text-beige-500 uppercase">Municipal &amp; Society Operations</span>
+          <h2 class="text-2xl font-serif font-bold text-beige-900">Emergency Triage &amp; Dispatch Queue</h2>
+          <p class="text-xs text-beige-600">Review AI vision classification, approve roadwork crews, or issue RWA violation penalties.</p>
+        </div>
+        <button onclick="downloadCSVReport()" class="px-4 py-2.5 rounded-xl bg-white hover:bg-beige-100 text-beige-900 text-xs font-bold editorial-border transition flex items-center gap-2 shadow-soft">
+          <i data-lucide="download" class="w-4 h-4"></i> Export Municipal Audit (CSV)
+        </button>
+      </div>
+
+      <!-- Table Card -->
+      <div class="bg-white rounded-3xl p-6 editorial-border shadow-soft overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead>
+            <tr class="border-b border-beige-200 text-beige-400 font-mono uppercase text-[10px] tracking-wider">
+              <th class="pb-3">Reference ID</th>
+              <th class="pb-3">Nature &amp; Scope</th>
+              <th class="pb-3">Specific Location</th>
+              <th class="pb-3">AI Severity Score</th>
+              <th class="pb-3">Assignee</th>
+              <th class="pb-3">Priority</th>
+              <th class="pb-3">Workflow State</th>
+              <th class="pb-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="triage-table-body" class="divide-y divide-beige-100 text-beige-700">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-beige-900/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-beige-50 rounded-3xl max-w-sm w-full p-6 sm:p-8 editorial-border shadow-elevated relative">
+      <button onclick="document.getElementById('auth-modal').classList.add('hidden')" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-beige-200 text-beige-700 hover:bg-beige-300 flex items-center justify-center transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+      <h3 class="text-2xl font-serif font-bold text-beige-900 mb-6">Sign In</h3>
+      
+      <form onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono font-bold text-beige-600 uppercase mb-1">Email</label>
+          <input type="email" id="login-email" class="w-full bg-white border border-beige-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500" value="admin@municipal.gov" required />
+        </div>
+        <div>
+          <label class="block text-xs font-mono font-bold text-beige-600 uppercase mb-1">Password</label>
+          <input type="password" id="login-password" class="w-full bg-white border border-beige-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-terracotta-500" value="admin123" required />
+        </div>
+        <button type="submit" class="w-full py-3.5 mt-2 rounded-xl bg-beige-900 hover:bg-beige-800 text-beige-50 font-bold text-xs uppercase tracking-wider transition">Sign In</button>
+      </form>
+      <div class="mt-4 text-[10px] text-beige-500 text-center font-mono space-y-1">
+        <p>Test Municipal: admin@municipal.gov / admin123</p>
+        <p>Test RWA: admin@greenvalley.com / admin123</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: REPORT CREATION WITH LIVE AI VISION SIMULATOR -->
+  <div id="report-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-beige-900/40 backdrop-blur-sm hidden opacity-0 transition-opacity duration-200">
+    <div class="bg-beige-50 rounded-3xl max-w-2xl w-full p-6 sm:p-8 editorial-border shadow-elevated relative max-h-[90vh] overflow-y-auto">
+      
+      <!-- Close Button -->
+      <button onclick="closeModal()" class="absolute top-6 right-6 w-8 h-8 rounded-full bg-beige-200 text-beige-700 hover:bg-beige-300 flex items-center justify-center transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+
+      <!-- Modal Header -->
+      <div class="space-y-1 mb-6">
+        <span class="text-xs font-mono font-bold text-terracotta-500 uppercase">Intelligent Intake</span>
+        <h3 class="text-2xl font-serif font-bold text-beige-900">File Incident for AI Verification</h3>
+        <p class="text-xs text-beige-600">The uploaded photo is parsed by our spatial detection model to extract dimensions and structural severity.</p>
+      </div>
+
+      <form id="incident-form" onsubmit="submitReport(event)" class="space-y-5">
+        
+        <!-- Toggle Scope: Public vs Gated Society -->
+        <div class="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-beige-200/60 editorial-border text-xs font-bold">
+          <button type="button" onclick="setFormScope('city')" id="scope-btn-city" class="py-2.5 rounded-xl bg-white text-beige-900 shadow-soft transition flex items-center justify-center gap-2">
+            <i data-lucide="cone" class="w-4 h-4 text-amberwood"></i> Public Road / Civic
+          </button>
+          <button type="button" onclick="setFormScope('gated')" id="scope-btn-gated" class="py-2.5 rounded-xl text-beige-600 hover:text-beige-900 transition flex items-center justify-center gap-2">
+            <i data-lucide="shield" class="w-4 h-4 text-cobalt"></i> Gated Society / RWA
+          </button>
+        </div>
+        <input type="hidden" id="form-scope" value="city" />
+
+        <!-- Gated Society Exclusive Fields -->
+        <div id="gated-fields-container" class="hidden p-4 rounded-2xl bg-beige-100 editorial-border space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1">Gated Complex Name</label>
+              <select id="form-society" class="w-full bg-white border border-beige-300 rounded-xl px-3 py-2 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500">
+                <option value="Green Valley Palms">Green Valley Palms</option>
+                <option value="Silver Arch Enclave">Silver Arch Enclave</option>
+                <option value="Prestige Falcon Park">Prestige Falcon Park</option>
+                <option value="Sobha Hillview Society">Sobha Hillview Society</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1">Tower / Unit / Area</label>
+              <input type="text" id="form-unit" placeholder="e.g., Tower B - Flat 504 / Basement 1" class="w-full bg-white border border-beige-300 rounded-xl px-3 py-2 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1">Society Complaint Type</label>
+            <select id="form-gated-category" class="w-full bg-white border border-beige-300 rounded-xl px-3 py-2 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500">
+              <option value="Parking Encroachment">Basement / Visitor Parking Encroachment</option>
+              <option value="Quiet Hours Violation">Clubhouse &amp; Late Night Noise (&gt;10:00 PM)</option>
+              <option value="Elevator & DG Maintenance">Lift Jerk / Emergency Light / DG Inoperative</option>
+              <option value="Security Gate Absence">Security Gate Guard Unattended / Barrier Defect</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Issue Title -->
+        <div>
+          <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1.5">Incident Title</label>
+          <input type="text" id="form-title" required placeholder="e.g., Crater pothole breaking front axles / Water pipe burst" class="w-full bg-white border border-beige-300 rounded-2xl px-4 py-3 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500 focus:ring-1 focus:ring-terracotta-500" />
+        </div>
+
+        <!-- Location Coordinates -->
+        <div>
+          <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1.5">Location / Landmark Description</label>
+          <input type="text" id="form-location" required placeholder="e.g., Ring Road opposite Metro Pillar 142" class="w-full bg-white border border-beige-300 rounded-2xl px-4 py-3 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500" />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1.5">Observations &amp; Risk Context</label>
+          <textarea id="form-desc" rows="3" required placeholder="Describe depth, water accumulation, or resident impact..." class="w-full bg-white border border-beige-300 rounded-2xl p-4 text-xs text-beige-900 font-semibold focus:outline-none focus:border-terracotta-500"></textarea>
+        </div>
+
+        <!-- Image Upload + AI Spatial Bounding Box Demo -->
+        <div>
+          <label class="block text-[11px] font-mono font-bold text-beige-600 uppercase mb-1.5">Photographic Evidence (AI Vision Scanner)</label>
+          
+          <!-- Hidden real file input -->
+          <input type="file" id="form-image" accept="image/jpeg,image/png,image/webp" capture="environment" class="hidden" onchange="handleImageUpload(event)" />
+
+          <div onclick="document.getElementById('form-image').click()" class="border-2 border-dashed border-beige-300 hover:border-terracotta-500 rounded-2xl p-5 text-center cursor-pointer bg-white transition group">
+            <div id="ai-placeholder" class="space-y-1.5">
+              <div class="w-10 h-10 mx-auto rounded-full bg-beige-100 flex items-center justify-center text-beige-500 group-hover:text-terracotta-500 transition">
+                <i data-lucide="scan" class="w-5 h-5"></i>
+              </div>
+              <p class="text-xs font-bold text-beige-900">Click to upload photo for AI inspection</p>
+              <p class="text-[10px] text-beige-400 font-mono">Accepts JPG, PNG, WEBP &bull; Edge Neural Inference</p>
+            </div>
+
+            <!-- AI Vision Result with user's uploaded image -->
+            <div id="ai-result" class="hidden text-left relative overflow-hidden rounded-xl bg-beige-100 p-4 border border-beige-300 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-forest-600 animate-ping"></span>
+                  <span class="font-mono text-xs font-bold text-beige-900">Neural Network Classification: COMPLETE</span>
+                </div>
+                <span id="ai-confidence" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-terracotta-500 text-white">96.8% Confidence</span>
+              </div>
+
+              <!-- Preview with Bounding Box -->
+              <div class="relative w-full h-48 rounded-lg overflow-hidden bg-beige-800">
+                <img id="ai-preview-img" src="" alt="Uploaded Evidence" class="w-full h-full object-cover opacity-80" />
+                
+                <!-- Bounding Box Annotation -->
+                <div class="bbox-scanner" style="top: 20%; left: 25%; width: 50%; height: 55%;">
+                  <span id="ai-defect-label" class="absolute -top-5 left-0 text-[9px] font-mono font-bold bg-terracotta-500 text-white px-1.5 py-0.5 rounded">
+                    DEFECT-01: Detected Anomaly
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-beige-700">
+                <div>Detected Hazard: <span id="ai-hazard-type" class="font-bold text-beige-900">Analyzing...</span></div>
+                <div>Risk Level: <span id="ai-risk-level" class="font-bold text-terracotta-500">Calculating...</span></div>
+              </div>
+              
+              <div class="flex items-center gap-2 text-[10px] text-beige-500">
+                <span id="ai-file-name" class="font-mono truncate"></span>
+                <button type="button" onclick="event.stopPropagation(); clearUpload()" class="ml-auto px-2 py-0.5 rounded bg-beige-200 hover:bg-beige-300 text-beige-700 font-bold transition">
+                  Remove & Re-upload
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="w-full py-3.5 rounded-2xl bg-beige-900 hover:bg-beige-800 text-beige-50 font-bold text-xs tracking-wider uppercase transition shadow-card flex items-center justify-center gap-2">
+          <i data-lucide="check" class="w-4 h-4 text-amberwood"></i>
+          <span>Verify &amp; Dispatch Ticket</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- FLOATING INTERACTIVE TOAST -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 bg-beige-900 text-beige-50 px-5 py-3.5 rounded-2xl shadow-elevated text-xs font-semibold flex items-center gap-3 translate-y-24 opacity-0 transition-all duration-300 pointer-events-none">
+    <i data-lucide="check-circle" class="w-5 h-5 text-amberwood"></i>
+    <span id="toast-text">Ticket has been lodged successfully!</span>
+  </div>
+
+  <!-- APPLICATION LOGIC & STATE ENGINE -->
+  <script>
+    const API = '';
+    let tickets = [];
+    let userKarma = 920;
+    let leafletMap = null;
+    let userLiveMarker = null;
+    let userLiveCoords = null;
+    let mapMarkers = [];
+    let uploadedFile = null;
+    let currentUser = null;
+    const PLACEHOLDER_SEEDS = [
+      {
+        id: "CP-701",
+        scope: "city",
+        type: "pothole",
+        category: "Roads & Potholes",
+        title: "Submerged Crater Pothole near Bodhan-Nizamabad Road",
+        location: "Bodhan Main Corridor, Landmark: Old Bus Stand",
+        description: "Heavy rains filled this 15cm deep cavity. Multiple bikes witnessed skidding during twilight hours.",
+        severity: "Critical",
+        severityScore: 94,
+        status: "Crew Dispatched",
+        upvotes: 48,
+        createdAt: "22m ago",
+        gated: false,
+        coords: [18.6650, 77.8970],
+        img: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=700&q=80"
+      },
+      {
+        id: "CP-702",
+        scope: "gated",
+        type: "gated",
+        category: "Gated Society",
+        society: "Green Valley Palms",
+        unit: "Wing C, Basement -1",
+        title: "Commercial Van Parked Across 2 Resident Bays",
+        location: "Green Valley Palms, Slot B-104",
+        description: "Third time this unregistered delivery van blocked elderly resident's slot. Security barrier let it enter without visitor OTP.",
+        severity: "Medium",
+        severityScore: 68,
+        status: "Notice Issued",
+        upvotes: 19,
+        createdAt: "45m ago",
+        gated: true,
+        coords: [18.6720, 77.9020],
+        img: "https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=700&q=80"
+      },
+      {
+        id: "CP-703",
+        scope: "city",
+        type: "water",
+        category: "Water Supply & Drainage",
+        title: "Pressurized Drinking Line Rupture Flooding Market",
+        location: "Gandhi Chowk, Bodhan Ward 4",
+        description: "Clean pipeline burst leaking thousands of litres per hour. Silt entering adjacent residences.",
+        severity: "Critical",
+        severityScore: 91,
+        status: "Valve Closed",
+        upvotes: 62,
+        createdAt: "1h ago",
+        gated: false,
+        coords: [18.6610, 77.8890],
+        img: "https://images.unsplash.com/photo-1584467735871-8e85353a8413?auto=format&fit=crop&w=700&q=80"
+      },
+      {
+        id: "CP-704",
+        scope: "gated",
+        type: "gated",
+        category: "Gated Society",
+        society: "Silver Arch Enclave",
+        unit: "Tower 2 Passenger Lift",
+        title: "Passenger Lift Stuck with Shutter Vibrations",
+        location: "Tower 2, Floor 7",
+        description: "Emergency telephone in elevator has no dial tone. RWA maintenance AMC has delayed inspection by 2 weeks.",
+        severity: "High",
+        severityScore: 84,
+        status: "AMC Contacted",
+        upvotes: 35,
+        createdAt: "2h ago",
+        gated: true,
+        coords: [18.6580, 77.9060],
+        img: "https://images.unsplash.com/photo-1549488344-1f9b8d2bd1f3?auto=format&fit=crop&w=700&q=80"
+      },
+      {
+        id: "CP-705",
+        scope: "city",
+        type: "electric",
+        category: "Power & Lighting",
+        title: "Exposed Transformer Terminal Wire on Pedestrian Walkway",
+        location: "Railway Station Approach Road",
+        description: "Live wires dangling within reach of cattle and pedestrians. Rain making contact zone dangerous.",
+        severity: "Critical",
+        severityScore: 96,
+        status: "Under Triage",
+        upvotes: 54,
+        createdAt: "3h ago",
+        gated: false,
+        coords: [18.6695, 77.8915],
+        img: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=700&q=80"
+      },
+      {
+        id: "CP-706",
+        scope: "gated",
+        type: "gated",
+        category: "Gated Society",
+        society: "Prestige Falcon Park",
+        unit: "Clubhouse Terrace",
+        title: "DJ Sound Rig Active at 1:15 AM (Decibels: 88dB)",
+        location: "Clubhouse Open Deck",
+        description: "Private birthday gathering playing heavy bass subwoofer far beyond society 10 PM quiet hour rules.",
+        severity: "Low",
+        severityScore: 48,
+        status: "Guard Dispatched",
+        upvotes: 23,
+        createdAt: "4h ago",
+        gated: true,
+        coords: [18.6640, 77.9100],
+        img: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=700&q=80"
+      }
+    ];
+
+    // ── Helpers ──
+    function timeAgo(iso) {
+      if (!iso) return 'Unknown';
+      const diff = Date.now() - new Date(iso).getTime();
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return 'Just now';
+      if (mins < 60) return mins + 'm ago';
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.floor(hrs / 24) + 'd ago';
+    }
+
+    // ── Data Fetching ──
+    async function loadTickets(type = 'all', sort = 'severity') {
+      try {
+        const params = new URLSearchParams({ sort });
+        if (type !== 'all') params.set('type', type);
+        const res = await fetch(`${API}/api/tickets?${params}`);
+        tickets = await res.json();
+        tickets.forEach(t => { t.createdAt = timeAgo(t.createdAt); });
+      } catch(e) {
+        console.error('API unavailable, using seeds', e);
+        tickets = [...PLACEHOLDER_SEEDS];
+      }
+      renderTicketsGrid(tickets);
+      renderGatedFeed();
+      renderTriageTable();
+      if (leafletMap) populateMapMarkers();
+    }
+
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API}/api/stats`);
+        const s = await res.json();
+        userKarma = s.karma;
+        document.getElementById('user-karma-badge').innerText = userKarma + ' PTS';
+        document.getElementById('stats-resolved').innerText = s.defectsRepaired;
+        document.getElementById('stats-active').innerText = s.criticalDispatches;
+      } catch(e) { console.error('Stats API unavailable', e); }
+    }
+
+    
+    // ── Auth ──
+    async function checkAuth() {
+        try {
+            const res = await fetch(`${API}/api/auth/me`);
+            if (res.ok) {
+                currentUser = await res.json();
+                updateAuthUI();
+            }
+        } catch (e) { console.warn("Not logged in"); }
+    }
+
+    async function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        try {
+            const res = await fetch(`${API}/api/auth/login`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            if (res.ok) {
+                currentUser = await res.json();
+                document.getElementById('auth-modal').classList.add('hidden');
+                updateAuthUI();
+                triggerToast(`Logged in as ${currentUser.name}`);
+                if (currentUser.role === 'municipal' || currentUser.role === 'rwa') {
+                    document.getElementById('auth-modal').classList.remove('hidden');
+                }
+            } else {
+                triggerToast('Invalid credentials');
+            }
+        } catch (e) { console.error('Login failed'); }
+    }
+
+    function updateAuthUI() {
+        if (!currentUser) return;
+        const authBtn = document.querySelector('aside .underline');
+        if (authBtn) {
+            authBtn.innerText = `Logged in: ${currentUser.name}`;
+            authBtn.onclick = null;
+        }
+        if (currentUser.role === 'citizen') {
+            document.getElementById('user-karma-badge').innerText = currentUser.karma + ' PTS';
+        }
+    }
+
+    // ── Init ──
+    document.addEventListener("DOMContentLoaded", async () => {
+      lucide.createIcons();
+      await checkAuth();
+      await loadTickets();
+      await loadStats();
+    });
+
+    // ── View Routing ──
+    function switchView(viewName) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        t.classList.remove('bg-white', 'text-beige-900', 'shadow-soft');
+        t.classList.add('text-beige-600');
+      });
+      const tv = document.getElementById(`view-${viewName}`);
+      if (tv) tv.classList.remove('hidden');
+      const tn = document.getElementById(`nav-${viewName}`);
+      if (tn) { tn.classList.add('bg-white', 'text-beige-900', 'shadow-soft'); tn.classList.remove('text-beige-600'); }
+
+      // Lazy-init map on first open, then refresh tiles + markers every visit
+      if (viewName === 'map') {
+        setTimeout(() => {
+          if (!leafletMap) {
+            initLeafletMap();
+            populateMapMarkers();
+          } else {
+            leafletMap.invalidateSize();
+            populateMapMarkers();
+          }
+        }, 100);
+      }
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Render Grid Cards ──
+    function renderTicketsGrid(data) {
+      const container = document.getElementById('tickets-grid');
+      container.innerHTML = data.map(ticket => {
+        const isCritical = ticket.severity === 'Critical';
+        const isHigh = ticket.severity === 'High';
+        const sevBg = isCritical ? 'bg-terracotta-500 text-white' : isHigh ? 'bg-amberwood text-white' : 'bg-beige-300 text-beige-800';
+        return `
+          <div class="bg-white rounded-3xl overflow-hidden editorial-border shadow-soft hover:shadow-card transition-all duration-300 flex flex-col justify-between group">
+            <div>
+              <div class="relative h-48 w-full bg-beige-200 overflow-hidden">
+                <img src="${ticket.img}" alt="${ticket.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" />
+                <div class="absolute inset-0 bg-gradient-to-t from-beige-900/60 via-transparent to-transparent"></div>
+                <div class="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold tracking-wider ${sevBg} shadow-sm">
+                  ${ticket.severity.toUpperCase()} (${ticket.severityScore}%)
+                </div>
+                <div class="absolute top-3 right-3 px-2 py-0.5 rounded-md text-[10px] font-mono font-bold ${ticket.gated ? 'bg-cobalt text-white' : 'bg-beige-50 text-beige-900'}">
+                  ${ticket.gated ? 'GATED RWA' : 'MUNICIPAL WARD'}
+                </div>
+                <div class="absolute bottom-2 left-3 right-3 text-[11px] text-white/90 flex items-center justify-between font-mono">
+                  <span>${ticket.createdAt}</span>
+                  <span class="font-bold">${ticket.id}</span>
+                </div>
+              </div>
+              <div class="p-5 space-y-2.5">
+                <div class="text-[10px] font-mono font-bold text-amberwood uppercase tracking-wider">
+                  ${ticket.gated ? `${ticket.society} &bull; ${ticket.unit}` : ticket.category}
+                </div>
+                <h3 class="font-bold text-base text-beige-900 group-hover:text-terracotta-500 transition line-clamp-2">${ticket.title}</h3>
+                <p class="text-xs text-beige-600 line-clamp-2 leading-relaxed">${ticket.description}</p>
+                <div class="flex items-center gap-1.5 text-xs text-beige-500 pt-1">
+                  <i data-lucide="map-pin" class="w-3.5 h-3.5 text-beige-400"></i>
+                  <span class="truncate">${ticket.location}</span>
+                </div>
+              </div>
+            </div>
+            <div class="p-4 bg-beige-50 border-t border-beige-200 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full ${isCritical ? 'bg-terracotta-500 animate-ping' : 'bg-forest-600'}"></span>
+                <span class="text-[11px] font-mono font-bold text-beige-700">${ticket.status}</span>
+              </div>
+              <button onclick="upvoteTicket('${ticket.id}')" class="px-3 py-1.5 rounded-xl bg-white hover:bg-beige-200 text-beige-800 text-xs font-bold font-mono editorial-border transition flex items-center gap-1.5 shadow-sm">
+                <i data-lucide="arrow-big-up" class="w-4 h-4 text-terracotta-500"></i>
+                <span id="v-${ticket.id}">${ticket.upvotes}</span>
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    // ── Filter & Sort ──
+    function filterTickets(filterType) {
+      document.querySelectorAll('.feed-btn').forEach(btn => {
+        btn.classList.remove('bg-beige-900', 'text-beige-50');
+        btn.classList.add('bg-beige-100', 'text-beige-700');
+      });
+      event.target.classList.add('bg-beige-900', 'text-beige-50');
+      event.target.classList.remove('bg-beige-100', 'text-beige-700');
+      loadTickets(filterType, document.getElementById('sort-select').value);
+    }
+
+    function sortTickets(criteria) {
+      loadTickets('all', criteria);
+    }
+
+    // ── Upvote (API) ──
+    async function upvoteTicket(id) {
+      try {
+        const res = await fetch(`${API}/api/tickets/${id}/upvote`, { method: 'POST' });
+        const data = await res.json();
+        document.getElementById(`v-${id}`).innerText = data.upvotes;
+        userKarma = data.karma;
+        document.getElementById('user-karma-badge').innerText = userKarma + ' PTS';
+      } catch(e) {
+        const ticket = tickets.find(t => t.id === id);
+        if (ticket) { ticket.upvotes += 1; document.getElementById(`v-${id}`).innerText = ticket.upvotes; }
+      }
+      triggerToast(`+10 Citizen Karma! Thank you for validating ticket ${id}.`);
+    }
+
+    // ── Gated Feed ──
+    function renderGatedFeed() {
+      const list = document.getElementById('gated-feed-list');
+      const gatedOnly = tickets.filter(t => t.gated);
+      list.innerHTML = gatedOnly.map(g => `
+        <div class="pt-3 pb-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex items-start gap-3">
+            <div class="w-10 h-10 rounded-xl bg-cobalt/10 text-cobalt flex items-center justify-center font-bold text-xs flex-shrink-0">
+              <i data-lucide="shield" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold text-beige-900">${g.society}</span>
+                <span class="text-[11px] text-beige-500 font-semibold">&bull; ${g.unit}</span>
+              </div>
+              <h4 class="text-sm font-bold text-beige-900 mt-0.5">${g.title}</h4>
+              <p class="text-xs text-beige-600 mt-0.5">${g.description}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-beige-100 text-beige-800">${g.status}</span>
+            <button onclick="rwaAction('${g.id}')" class="px-3 py-1.5 rounded-xl bg-beige-900 hover:bg-beige-800 text-beige-50 text-xs font-bold transition">
+              Escalate to RWA
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function rwaAction(id) {
+      try {
+        await fetch(`${API}/api/tickets/${id}/status`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'RWA Escalated' })
+        });
+      } catch(e) { const t = tickets.find(i => i.id === id); if (t) t.status = 'RWA Escalated'; }
+      await loadTickets();
+      triggerToast(`Ticket ${id} flagged to Management Committee.`);
+    }
+
+    // ── Triage Table ──
+    function renderTriageTable() {
+      const tbody = document.getElementById('triage-table-body');
+      tbody.innerHTML = tickets.map(t => {
+        const isCritical = t.severity === 'Critical';
+        return `
+          <tr class="hover:bg-beige-50/80 transition border-b border-beige-100">
+            <td class="py-3 font-mono font-bold text-beige-900">${t.id}</td>
+            <td class="py-3">
+              <span class="font-bold text-beige-900 block truncate max-w-xs">${t.title}</span>
+              <span class="text-[10px] font-mono text-beige-400 uppercase">${t.category}</span>
+            </td>
+            <td class="py-3 text-beige-600 max-w-xs truncate" title="${t.location}">${t.location}</td>
+            <td class="py-3">
+              <span class="font-mono font-bold text-xs ${isCritical ? 'text-terracotta-500' : 'text-amberwood'}">
+                ${t.severityScore}% (${t.severity})
+              </span>
+            </td>
+            <td class="py-3 font-semibold text-beige-800">${t.assignee || 'Unassigned'}</td>
+            <td class="py-3 font-bold text-beige-600">${t.priority || 'Normal'}</td>
+            <td class="py-3">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${t.status==='Resolved'?'bg-forest-600 text-white':'bg-beige-200 text-beige-800'}">${t.status}</span>
+            </td>
+            <td class="py-3 text-right space-x-1">
+              ${t.status === 'Resolved' ? '' : `
+              <button onclick="deploySquad('${t.id}')" class="px-3 py-1.5 rounded-lg bg-beige-900 hover:bg-beige-800 text-beige-50 text-[11px] font-bold font-mono transition shadow-sm">
+                Deploy
+              </button>
+              <button onclick="resolveTicket('${t.id}')" class="px-3 py-1.5 rounded-lg bg-forest-600 hover:bg-forest-700 text-white text-[11px] font-bold font-mono transition shadow-sm">
+                Resolve
+              </button>
+              `}
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    async function deploySquad(id) {
+      try {
+        await fetch(`${API}/api/tickets/${id}/status`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Squad En Route', assignee: 'Municipal Response' })
+        });
+      } catch(e) { }
+      await loadTickets();
+      triggerToast(`Deployment confirmed: Squad en route to ${id}!`);
+    }
+
+    async function resolveTicket(id) {
+      try {
+        await fetch(`${API}/api/tickets/${id}/status`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Resolved' })
+        });
+      } catch(e) { }
+      await loadTickets();
+      triggerToast(`Issue ${id} has been resolved.`);
+    }
+
+    // ── Leaflet Map ──
+    function initLeafletMap() {
+      leafletMap = L.map('leaflet-map').setView([18.6630, 77.8980], 14);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+      }).addTo(leafletMap);
+
+      // Track Live User Location
+      if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+          (position) => {
+            const pos = [position.coords.latitude, position.coords.longitude];
+            userLiveCoords = pos;
+
+            if (!userLiveMarker) {
+               userLiveMarker = L.circleMarker(pos, {
+                 radius: 8,
+                 fillColor: '#4285F4',
+                 fillOpacity: 1,
+                 color: 'white',
+                 weight: 2
+               }).addTo(leafletMap);
+               userLiveMarker.bindTooltip("Your Location");
+               
+               // Center map immediately when we get the first live location lock
+               leafletMap.setView(pos, 15);
+            } else {
+               userLiveMarker.setLatLng(pos);
+            }
+          },
+          (err) => { console.warn("Geolocation tracking failed: ", err.message); },
+          { enableHighAccuracy: true }
+        );
+      }
+    }
+
+    function populateMapMarkers() {
+      if (!leafletMap) return;
+      mapMarkers.forEach(m => leafletMap.removeLayer(m));
+      mapMarkers = [];
+      tickets.forEach(ticket => {
+        const isCrit = ticket.severity === 'Critical';
+        const color = isCrit ? '#D95338' : ticket.gated ? '#325D88' : '#C97A2B';
+        const position = Array.isArray(ticket.coords) ? ticket.coords : [ticket.lat, ticket.lng];
+        
+        const customIcon = L.divIcon({
+          className: '',
+          html: `<div class="custom-marker" style="background:${color};">${ticket.severityScore}</div>`,
+          iconSize: [32, 32], iconAnchor: [16, 16]
+        });
+        const marker = L.marker(position, { icon: customIcon }).addTo(leafletMap);
+        marker.bindPopup(`
+          <div style="font-family:'Plus Jakarta Sans',sans-serif; min-width:180px; padding:2px;">
+            <div style="font-size:10px; font-weight:800; color:#9E8B76; text-transform:uppercase;">${ticket.id} &bull; ${ticket.severity}</div>
+            <div style="font-size:13px; font-weight:700; color:#231B15; margin:3px 0;">${ticket.title}</div>
+            <div style="font-size:11px; color:#756350;">${ticket.location}</div>
+            <div style="margin-top:6px; font-size:11px; font-weight:bold; color:#D95338;">Status: ${ticket.status}</div>
+          </div>`);
+        mapMarkers.push(marker);
+      });
+    }
+
+    function recenterMap() {
+      if (leafletMap) {
+        leafletMap.invalidateSize();
+        if (userLiveCoords) {
+            leafletMap.setView(userLiveCoords, 15);
+        } else {
+            leafletMap.setView([18.6630, 77.8980], 14);
+        }
+      }
+    }
+
+
+    // ── Modal ──
+    function openModal(defaultScope, defaultGatedCategory) {
+      const modal = document.getElementById('report-modal');
+      modal.classList.remove('hidden');
+      setTimeout(() => modal.classList.remove('opacity-0'), 10);
+      if (defaultScope === 'gated') {
+        setFormScope('gated');
+        if (defaultGatedCategory) document.getElementById('form-gated-category').value = defaultGatedCategory;
+      } else { setFormScope('city'); }
+    }
+
+    function closeModal() {
+      const modal = document.getElementById('report-modal');
+      modal.classList.add('opacity-0');
+      setTimeout(() => modal.classList.add('hidden'), 200);
+      document.getElementById('ai-result').classList.add('hidden');
+      document.getElementById('ai-placeholder').classList.remove('hidden');
+      document.getElementById('ai-preview-img').src = '';
+      document.getElementById('form-image').value = '';
+      uploadedFile = null;
+    }
+
+    function setFormScope(scope) {
+      document.getElementById('form-scope').value = scope;
+      const cityBtn = document.getElementById('scope-btn-city');
+      const gatedBtn = document.getElementById('scope-btn-gated');
+      const gatedFields = document.getElementById('gated-fields-container');
+      if (scope === 'gated') {
+        gatedBtn.className = "py-2.5 rounded-xl bg-white text-beige-900 shadow-soft transition flex items-center justify-center gap-2";
+        cityBtn.className = "py-2.5 rounded-xl text-beige-600 hover:text-beige-900 transition flex items-center justify-center gap-2";
+        gatedFields.classList.remove('hidden');
+      } else {
+        cityBtn.className = "py-2.5 rounded-xl bg-white text-beige-900 shadow-soft transition flex items-center justify-center gap-2";
+        gatedBtn.className = "py-2.5 rounded-xl text-beige-600 hover:text-beige-900 transition flex items-center justify-center gap-2";
+        gatedFields.classList.add('hidden');
+      }
+    }
+
+    function handleImageUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      uploadedFile = file;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // Show the AI result panel with user's image
+        document.getElementById('ai-placeholder').classList.add('hidden');
+        document.getElementById('ai-result').classList.remove('hidden');
+        document.getElementById('ai-preview-img').src = e.target.result;
+        document.getElementById('ai-file-name').innerText = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+
+        // Simulate AI classification based on file name / form context
+        const scope = document.getElementById('form-scope').value;
+        const confidence = (88 + Math.random() * 10).toFixed(1);
+        document.getElementById('ai-confidence').innerText = confidence + '% Confidence';
+
+        const hazards = scope === 'gated'
+          ? ['Parking Encroachment', 'Elevator Fault', 'Security Breach', 'Noise Violation', 'Water Leakage']
+          : ['Severe Structural Pothole', 'Road Surface Crack', 'Drainage Overflow', 'Exposed Wiring', 'Broken Footpath'];
+        const risks = ['Critical - Immediate Action', 'High Risk - Priority Queue', 'Medium Risk - Scheduled', 'Elevated - Monitor'];
+        const defects = scope === 'gated'
+          ? ['VIOLATION-01: Society Rule Breach', 'INFRA-01: Equipment Failure', 'SAFETY-01: Access Control Gap']
+          : ['DEFECT-01: Asphalt Cavity (0.9m)', 'DEFECT-01: Surface Erosion', 'DEFECT-01: Infrastructure Damage'];
+
+        // Animate with a brief delay to simulate processing
+        document.getElementById('ai-hazard-type').innerText = 'Processing...';
+        document.getElementById('ai-risk-level').innerText = 'Scanning...';
+        document.getElementById('ai-defect-label').innerText = 'Analyzing...';
+
+        setTimeout(() => {
+          document.getElementById('ai-hazard-type').innerText = hazards[Math.floor(Math.random() * hazards.length)];
+          document.getElementById('ai-risk-level').innerText = risks[Math.floor(Math.random() * risks.length)];
+          document.getElementById('ai-defect-label').innerText = defects[Math.floor(Math.random() * defects.length)];
+        }, 1200);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function clearUpload() {
+      uploadedFile = null;
+      document.getElementById('form-image').value = '';
+      document.getElementById('ai-result').classList.add('hidden');
+      document.getElementById('ai-placeholder').classList.remove('hidden');
+      document.getElementById('ai-preview-img').src = '';
+    }
+
+    function triggerAIAnalysis() {
+      document.getElementById('form-image').click();
+    }
+
+    // ── Submit Report (API with image upload) ──
+    async function submitReport(e) {
+      e.preventDefault();
+      const scope = document.getElementById('form-scope').value;
+      const isGated = scope === 'gated';
+
+      // Build FormData to support file upload
+      const formData = new FormData();
+      formData.append('scope', scope);
+      formData.append('title', document.getElementById('form-title').value);
+      formData.append('location', document.getElementById('form-location').value);
+      formData.append('description', document.getElementById('form-desc').value);
+      formData.append('severityScore', '92');
+      if (isGated) {
+        formData.append('society', document.getElementById('form-society').value);
+        formData.append('unit', document.getElementById('form-unit').value || 'General Common Area');
+      }
+
+      // Attach uploaded image if present
+      // Await geolocation before submission
+      await new Promise((resolve) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              formData.append('lat', pos.coords.latitude);
+              formData.append('lng', pos.coords.longitude);
+              resolve();
+            },
+            () => { console.warn("No GPS"); resolve(); },
+            { timeout: 3000 }
+          );
+        } else {
+          resolve();
+        }
+      });
+
+      if (uploadedFile) {
+        formData.append('image', uploadedFile);
+      } else {
+        // Fallback placeholder image
+        formData.append('image_url', isGated
+          ? 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=700&q=80'
+          : 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=700&q=80');
+      }
+
+      try {
+        const res = await fetch(`${API}/api/tickets`, {
+          method: 'POST',
+          body: formData  // No Content-Type header — browser sets multipart boundary
+        });
+        const data = await res.json();
+        userKarma = data.karma;
+        document.getElementById('user-karma-badge').innerText = userKarma + ' PTS';
+      } catch(err) { console.error('Submit failed', err); }
+
+      uploadedFile = null;
+      await loadTickets();
+      await loadStats();
+      closeModal();
+      clearUpload();
+      e.target.reset();
+      triggerToast(`+50 Karma! Incident registered & mapped successfully.`);
+    }
+
+    // ── CSV Export (API) ──
+    function downloadCSVReport() {
+      window.location.href = `${API}/api/export/csv`;
+      triggerToast("CSV Audit file generated and downloaded.");
+    }
+
+    // ── Toast ──
+    function triggerToast(text) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-text').innerText = text;
+      toast.classList.remove('opacity-0', 'translate-y-24', 'pointer-events-none');
+      setTimeout(() => { toast.classList.add('opacity-0', 'translate-y-24', 'pointer-events-none'); }, 3500);
+    }
+  </script>
+
+  <!-- Mobile Bottom Nav -->
+  <nav class="lg:hidden fixed bottom-0 w-full bg-beige-50/95 backdrop-blur-md border-t border-beige-200 z-40 pb-safe">
+    <div class="flex justify-around items-center h-16">
+      <button onclick="switchView('feed')" class="flex flex-col items-center justify-center w-full h-full text-terracotta-500">
+        <i data-lucide="layers" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1">Feed</span>
+      </button>
+      <button onclick="switchView('map')" class="flex flex-col items-center justify-center w-full h-full text-beige-500 hover:text-beige-900">
+        <i data-lucide="map-pin" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1">Radar</span>
+      </button>
+      <div class="relative w-full h-full flex justify-center">
+        <button onclick="openModal()" class="absolute -top-5 w-14 h-14 bg-terracotta-500 rounded-full text-white shadow-card flex items-center justify-center active:scale-95 transition-transform">
+          <i data-lucide="camera" class="w-6 h-6"></i>
+        </button>
+      </div>
+      <button onclick="switchView('gated')" class="flex flex-col items-center justify-center w-full h-full text-beige-500 hover:text-beige-900">
+        <i data-lucide="shield-alert" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1">Gated</span>
+      </button>
+      <button onclick="switchView('authority')" class="flex flex-col items-center justify-center w-full h-full text-beige-500 hover:text-beige-900">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+        <span class="text-[9px] font-bold mt-1">Dispatch</span>
+      </button>
+    </div>
+  </nav>
+
+</body>
+</html>
